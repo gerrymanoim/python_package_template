@@ -1,0 +1,58 @@
+
+# via https://packaging.python.org/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
+name: Publish Python 🐍 distributions 📦 to PyPI
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-n-publish:
+    name: Build and publish Python 🐍 distributions 📦 to TestPyPI
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Build sdist
+      run: python setup.py sdist
+
+    - name: Publish distribution 📦 to Test PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        skip_existing: true # recommended true for testing in case only the test deploy failed
+        password: ${{ secrets.test_pypi_password }}
+        repository_url: https://test.pypi.org/legacy/
+
+    - name: Install from test and test running
+      run: |
+        pip install --extra-index-url https://test.pypi.org/simple your_package_name
+        mkdir tmp && cd tmp && python -c 'import your_package_name'
+        pip uninstall -y your_package_name
+        cd ..
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        skip_existing: false # do not silently skip real deploy
+        password: ${{ secrets.pypi_password }}
+
+    - name: Install and test running
+      run: |
+        pip install your_package_name
+        cd tmp && python -c 'import your_package_name'
+        cd ..
+
+    # - name: Build the docs
+    #   run: |
+    #     pip install sphinx sphinx_rtd_theme breathe ipython
+    #     make docs
+
+    # - name: Deploy the docs
+    #   uses: peaceiris/actions-gh-pages@v3
+    #   with:
+    #     github_token: ${{ secrets.GITHUB_TOKEN }}
+    #     publish_dir: ./docs/build/html

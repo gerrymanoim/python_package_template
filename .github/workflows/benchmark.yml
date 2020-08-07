@@ -1,0 +1,42 @@
+name: Benchmark
+
+on:
+  pull_request:
+    types: [opened]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: khan/pull-request-comment-trigger@master
+      id: check
+      with:
+        trigger: '!benchmark'
+        reaction: eyes
+      env:
+        GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+    - uses: actions/checkout@v2
+      if: steps.check.outputs.triggered == 'true'
+      with:
+        submodules: 'recursive'
+    - name: Set up Python 3.8
+      if: steps.check.outputs.triggered == 'true'
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Install
+      if: steps.check.outputs.triggered == 'true'
+      run: |
+        pip install  ".[test,benchmark]"
+    - name: Run benchmarks
+      if: steps.check.outputs.triggered == 'true'
+      run: |
+        pytest | tee benchmarks.txt
+    - uses: actions/upload-artifact@v2
+      if: steps.check.outputs.triggered == 'true'
+      with:
+        name: benchmark-artifact
+        path: benchmarks.txt
